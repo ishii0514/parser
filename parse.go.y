@@ -1,5 +1,5 @@
 %{
-package main
+package parse
 
 import (
     "fmt"

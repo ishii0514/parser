@@ -1,9 +1,9 @@
-//line parser.go.y:2
-package main
+//line parse.go.y:2
+package parse
 
 import __yyfmt__ "fmt"
 
-//line parser.go.y:2
+//line parse.go.y:2
 import (
 	"fmt"
 	"os"
@@ -26,7 +26,7 @@ type BinOpExpr struct {
 	right    Expression
 }
 
-//line parser.go.y:26
+//line parse.go.y:26
 type yySymType struct {
 	yys   int
 	token Token
@@ -48,7 +48,7 @@ const yyEofCode = 1
 const yyErrCode = 2
 const yyInitialStackSize = 16
 
-//line parser.go.y:55
+//line parse.go.y:55
 
 type Lexer struct {
 	scanner.Scanner
@@ -473,20 +473,20 @@ yydefault:
 
 	case 1:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line parser.go.y:41
+		//line parse.go.y:41
 		{
 			yyVAL.expr = yyDollar[1].expr
 			yylex.(*Lexer).result = yyVAL.expr
 		}
 	case 2:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line parser.go.y:48
+		//line parse.go.y:48
 		{
 			yyVAL.expr = NumExpr{literal: yyDollar[1].token.literal}
 		}
 	case 3:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line parser.go.y:52
+		//line parse.go.y:52
 		{
 			yyVAL.expr = BinOpExpr{left: yyDollar[1].expr, operator: '+', right: yyDollar[3].expr}
 		}
