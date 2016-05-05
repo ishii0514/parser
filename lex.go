@@ -21,6 +21,8 @@ func (i item) String() string {
 		return "EOF"
 	case i.typ == itemError:
 		return i.val
+	case len(i.val) > 10:
+		return fmt.Sprintf("%.10q...", i.val)
 	}
 	return fmt.Sprintf("%q", i.val)
 }
@@ -28,6 +30,8 @@ func (i item) String() string {
 const (
 	itemError itemType = iota
 	itemString
+	itemNumber
+	itemIdentifier
 	itemText
 	itemBlockComment
 	itemLineComment
@@ -116,6 +120,13 @@ func (l *lexer) accept(valid string) bool {
 	return false
 }
 
+func (l *lexer) acceptRun(valid string) {
+	//validの文字が登場しなくなるまで進める。
+	for strings.IndexRune(valid, l.next()) >= 0 {
+	}
+	l.backup()
+}
+
 func (l *lexer) errorf(format string, args ...interface{}) stateFn {
 	//error itemをchannelに送る。stateFnとしてnilを返す。
 	l.items <- item{itemError, l.start, fmt.Sprintf(format, args...)}
@@ -195,6 +206,40 @@ func lexString(l *lexer) stateFn {
 	}
 }
 
+func lexNumber(l *lexer) stateFn {
+	if !l.scanNumber() {
+		return l.errorf("bad number syntax: %q", l.input[l.start:l.pos])
+	}
+	if sign := l.peek(); sign == '+' || sign == '-' {
+		if !l.scanNumber() || l.input[l.pos-1] != 'i' {
+			return l.errorf("bad number syntax: %q", l.input[l.start:l.pos])
+		}
+		//l.emit(itemComplex)
+	} else {
+		l.emit(itemNumber)
+	}
+	return lexText
+}
+
+func (l *lexer) scanNumber() bool {
+	l.accept("+-")
+	digits := "0123456789"
+	l.acceptRun(digits)
+	if l.accept(".") {
+		l.acceptRun(digits)
+	}
+	if l.accept("eE") {
+		l.accept("+-")
+		l.acceptRun(digits)
+	}
+	l.accept("i")
+	if isAlphaNumeric(l.peek()) {
+		l.next()
+		return false
+	}
+	return true
+}
+
 func lexWhitespace(l *lexer) stateFn {
 	for unicode.IsSpace(l.next()) {
 	}
@@ -237,4 +282,9 @@ func lexBlockComment(l *lexer) stateFn {
 	}
 	l.emit(itemEOF)
 	return nil
+}
+
+//reports whether r is an alphabetic, digit, or underscore.
+func isAlphaNumeric(r rune) bool {
+	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
 }

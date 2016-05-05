@@ -24,3 +24,13 @@ func compare(t *testing.T, actual item, expected item) {
 		t.Errorf("actual=[typ:%d,pos=%d,val=%q], expected=[typ=%d,pos=%d,val=%q]", actual.typ, actual.pos, actual.val, expected.typ, expected.pos, expected.val)
 	}
 }
+
+func TestIsAlphaNumeric(t *testing.T) {
+	if isAlphaNumeric('_') == false {
+		t.Errorf("error %q", '_')
+	}
+	if isAlphaNumeric('%') {
+		t.Errorf("error %q", '%')
+	}
+
+}
