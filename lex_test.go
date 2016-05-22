@@ -5,18 +5,29 @@ import (
 )
 
 func TestLex(t *testing.T) {
-	l := lex("abc  def")
-	actual := l.nextItem()
-	expected := item{itemText, 0, "abc"}
-	compare(t, actual, expected)
+	input := "abc  def"
+	expects := []item{
+		item{itemIdentifier, 0, "abc"},
+		item{itemWhitespace, 3, "  "},
+		item{itemIdentifier, 5, "def"},
+	}
+	check(t, input, expects)
 
-	actual = l.nextItem()
-	expected = item{itemWhitespace, 3, "  "}
-	compare(t, actual, expected)
+	input = "あいう えお"
+	expects = []item{
+		item{itemIdentifier, 0, "あいう"},
+		item{itemWhitespace, 9, " "},
+		item{itemIdentifier, 10, "えお"},
+	}
+	check(t, input, expects)
+}
 
-	actual = l.nextItem()
-	expected = item{itemText, 5, "def"}
-	compare(t, actual, expected)
+func check(t *testing.T, input string, expects []item) {
+	l := lex(input)
+	for _, expected := range expects {
+		compare(t, l.nextItem(), expected)
+	}
+	compare(t, l.nextItem(), item{itemEOF, len(input), ""})
 }
 
 func compare(t *testing.T, actual item, expected item) {
@@ -33,4 +44,14 @@ func TestIsAlphaNumeric(t *testing.T) {
 		t.Errorf("error %q", '%')
 	}
 
+	if isAlphaNumeric('1') == false {
+		t.Errorf("error %q/", '1')
+	}
+	if isAlphaNumeric(' ') {
+		t.Errorf("error %q", ' ')
+	}
+
+	if isAlphaNumeric('あ') == false {
+		t.Errorf("error %q", 'あ')
+	}
 }

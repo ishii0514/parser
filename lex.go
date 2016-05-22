@@ -32,7 +32,9 @@ const (
 	itemString
 	itemNumber
 	itemIdentifier
-	itemText
+	itemPeriod
+	itemArithmeticOperator
+	itemEriminate
 	itemBlockComment
 	itemLineComment
 	itemWhitespace
@@ -73,8 +75,8 @@ func lex(input string) *lexer {
 
 func (l *lexer) run() {
 	//lの状態を管理する。
-	//lexTextから始まって、l.state(l)で現在の状況のl.stateにする。
-	for l.state = lexText; l.state != nil; {
+	//lexBaseから始まって、l.state(l)で現在の状況のl.stateにする。
+	for l.state = lexBase; l.state != nil; {
 		l.state = l.state(l)
 	}
 }
@@ -141,63 +143,59 @@ const (
 	rightComment = "*/"
 )
 
-func lexText(l *lexer) stateFn {
-	for {
-		if strings.HasPrefix(l.input[l.pos:], doubleQuote) {
-			if l.pos > l.start {
-				l.emit(itemText)
-			}
-			return lexString
-		} else if strings.HasPrefix(l.input[l.pos:], lineComment) {
-			if l.pos > l.start {
-				l.emit(itemText)
-			}
-			return lexLineComment
-		} else if strings.HasPrefix(l.input[l.pos:], leftComment) {
-			if l.pos > l.start {
-				l.emit(itemText)
-			}
-			return lexBlockComment
-		}
-
-		r := l.next()
-		if unicode.IsSpace(r) {
-			l.backup()
-			if l.pos > l.start {
-				l.emit(itemText)
-			}
-			return lexWhitespace
-		} else if r == eof {
-			break
-		}
+func lexBase(l *lexer) stateFn {
+	if strings.HasPrefix(l.input[l.pos:], lineComment) {
+		return lexLineComment
+	} else if strings.HasPrefix(l.input[l.pos:], leftComment) {
+		return lexBlockComment
 	}
-
-	if l.pos > l.start {
-		l.emit(itemText)
+	switch r := l.next(); {
+	case r == eof:
+		if l.pos > l.start {
+			return l.errorf("illegal item")
+		}
+		l.emit(itemEOF)
+		return nil
+	case isSpace(r):
+		l.backup()
+		return lexWhitespace
+	case r == '\'':
+		return lexString
+	case r == '.':
+		//TODO 要テスト。末尾に'.'がある場合。
+		//TODO 要テスト。ピリオドが二つ以上ある数字。
+		if !unicode.IsDigit(l.peek()) {
+			l.emit(itemPeriod)
+			return lexBase
+		}
+		fallthrough
+	case ('0' <= r && r <= '9'):
+		l.backup()
+		return lexNumber
+	case r == '-' || r == '+':
+		//+-はここでは演算子として扱う
+		//TODO 数値の符号かどうかは構文解析で考える
+		l.emit(itemArithmeticOperator)
+	case r == '*' || r == '/':
+		l.emit(itemArithmeticOperator)
+	case r == ';':
+		l.emit(itemEriminate)
+	case isIdentifierBegin(r):
+		l.backup()
+		return lexIdentifiler
 	}
-	l.emit(itemEOF)
-	return nil
+	return lexBase
 }
 
 func lexString(l *lexer) stateFn {
-	l.next()
 	for {
 		switch r := l.next(); {
-		case r == '"':
-			l.emit(itemString)
-			return lexText
-		case r == '\\':
-			if l.accept(`"\/bfnrt`) {
-				break
-			} else if r := l.next(); r == 'u' {
-				for i := 0; i < 4; i++ {
-					if !l.accept("0123456789ABCDEFabcdef") {
-						return l.errorf("expected 4 hexadecimal digits")
-					}
-				}
-			} else {
-				return l.errorf("unsupported escape character")
+		case r == '\'':
+			if l.accept(singleQuote) {
+				continue
 			}
+			l.emit(itemString)
+			return lexBase
 		case unicode.IsControl(r):
 			return l.errorf("cannot contain control characters in strings")
 		case r == eof:
@@ -210,29 +208,43 @@ func lexNumber(l *lexer) stateFn {
 	if !l.scanNumber() {
 		return l.errorf("bad number syntax: %q", l.input[l.start:l.pos])
 	}
-	if sign := l.peek(); sign == '+' || sign == '-' {
+	//imaginary is not support.
+	/*if sign := l.peek(); sign == '+' || sign == '-' {
 		if !l.scanNumber() || l.input[l.pos-1] != 'i' {
 			return l.errorf("bad number syntax: %q", l.input[l.start:l.pos])
 		}
-		//l.emit(itemComplex)
+		l.emit(itemComplex)
 	} else {
 		l.emit(itemNumber)
-	}
-	return lexText
+	}*/
+	l.emit(itemNumber)
+	return lexBase
 }
 
 func (l *lexer) scanNumber() bool {
-	l.accept("+-")
+	//l.accept("+-")
 	digits := "0123456789"
+	//数値の存否
+	exists_int := l.accept(digits)
+	exists_decimal := false
+
 	l.acceptRun(digits)
 	if l.accept(".") {
+		exists_decimal = l.accept(digits)
 		l.acceptRun(digits)
+	}
+	if !exists_int && !exists_decimal {
+		return false
 	}
 	if l.accept("eE") {
 		l.accept("+-")
+		if !l.accept(digits) {
+			return false
+		}
 		l.acceptRun(digits)
 	}
-	l.accept("i")
+	//imaginary is not support.
+	//l.accept("i")
 	if isAlphaNumeric(l.peek()) {
 		l.next()
 		return false
@@ -241,11 +253,19 @@ func (l *lexer) scanNumber() bool {
 }
 
 func lexWhitespace(l *lexer) stateFn {
-	for unicode.IsSpace(l.next()) {
+	for isSpace(l.next()) {
 	}
 	l.backup()
 	l.emit(itemWhitespace)
-	return lexText
+	return lexBase
+}
+
+func lexIdentifiler(l *lexer) stateFn {
+	for isAlphaNumeric(l.next()) {
+	}
+	l.backup()
+	l.emit(itemIdentifier)
+	return lexBase
 }
 
 func lexLineComment(l *lexer) stateFn {
@@ -259,7 +279,7 @@ func lexLineComment(l *lexer) stateFn {
 				l.emit(itemEOF)
 				return nil
 			}
-			return lexText
+			return lexBase
 		}
 	}
 }
@@ -268,23 +288,34 @@ func lexBlockComment(l *lexer) stateFn {
 	for {
 		if strings.HasPrefix(l.input[l.pos:], rightComment) {
 			l.pos += len(rightComment)
-			if l.pos > l.start {
-				l.emit(itemBlockComment)
-			}
-			return lexText
+			l.emit(itemBlockComment)
+			return lexBase
 		}
 		if l.next() == eof {
 			break
 		}
 	}
 	if l.pos > l.start {
-		l.emit(itemText)
+		l.errorf("unclosed brock comment")
 	}
 	l.emit(itemEOF)
 	return nil
 }
 
+func isSpace(r rune) bool {
+	return r == ' ' || r == '\t'
+}
+
+func isEndOfLine(r rune) bool {
+	return r == '\r' || r == '\n'
+}
+
 //reports whether r is an alphabetic, digit, or underscore.
 func isAlphaNumeric(r rune) bool {
-	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
+	return isIdentifierBegin(r) || unicode.IsDigit(r)
+}
+
+//識別子の戦闘かどうか
+func isIdentifierBegin(r rune) bool {
+	return 'a' <= r && r <= 'z' || 'A' <= r && r <= 'Z' || r == '_' || r >= 0x80 && unicode.IsLetter(r)
 }
