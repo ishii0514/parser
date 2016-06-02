@@ -105,6 +105,10 @@ func (l *lexer) backup() {
 	l.pos -= l.width
 }
 
+func (l *lexer) ignore() {
+	l.start = l.pos
+}
+
 func (l *lexer) emit(t itemType) {
 	//指定されたitemTypeのitemを生成してitems channelに送る。
 	//pos,valueは、lのコンテキストから作成
@@ -255,7 +259,8 @@ func lexWhitespace(l *lexer) stateFn {
 	for isSpace(l.next()) {
 	}
 	l.backup()
-	l.emit(itemWhitespace)
+	//l.emit(itemWhitespace)
+	l.ignore()
 	return lexBase
 }
 

@@ -60,8 +60,6 @@ func (w *LexerWrapper) Lex(lval *yySymType) int {
 	//案1.直接同じものを使う。シングルバイト1文字はそのままintに変換
 	//案2.変換関数を用意する。
 
-	//TODO 空白除去
-	//TODO テストコード
 	if item.typ == itemNumber {
 		token = NUMBER
 	}
