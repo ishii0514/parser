@@ -6,9 +6,6 @@ import __yyfmt__ "fmt"
 //line parse.go.y:2
 import (
 	"fmt"
-	"os"
-	"strings"
-	"text/scanner"
 )
 
 type Expression interface{}
@@ -26,7 +23,7 @@ type BinOpExpr struct {
 	right    Expression
 }
 
-//line parse.go.y:26
+//line parse.go.y:25
 type yySymType struct {
 	yys   int
 	token Token
@@ -48,31 +45,44 @@ const yyEofCode = 1
 const yyErrCode = 2
 const yyInitialStackSize = 16
 
-//line parse.go.y:55
+//line parse.go.y:54
 
-type Lexer struct {
-	scanner.Scanner
+type LexerWrapper struct {
+	//scanner.Scanner
+	l      *lexer
 	result Expression
 }
 
-func (l *Lexer) Lex(lval *yySymType) int {
-	token := int(l.Scan())
-	if token == scanner.Int {
+func (w *LexerWrapper) Lex(lval *yySymType) int {
+	item := w.l.nextItem()
+	token := int(item.typ)
+	//TODO lexのシンボルとparserのシンボルの合わせ方
+	//案1.直接同じものを使う。シングルバイト1文字はそのままintに変換
+	//案2.変換関数を用意する。
+
+	//TODO 空白除去
+	//TODO テストコード
+	if item.typ == itemNumber {
 		token = NUMBER
 	}
-	lval.token = Token{token: token, literal: l.TokenText()}
+	if item.typ == itemArithmeticOperator {
+		token = int('+')
+	}
+	if item.typ == itemEOF {
+		token = 0
+	}
+	lval.token = Token{token: token, literal: item.val}
 	return token
 }
 
-func (l *Lexer) Error(e string) {
+func (w *LexerWrapper) Error(e string) {
 	panic(e)
 }
 
-func main() {
-	l := new(Lexer)
-	l.Init(strings.NewReader(os.Args[1]))
-	yyParse(l)
-	fmt.Printf("%#v¥n", l.result)
+func Parse(input string) {
+	w := LexerWrapper{l: lex(input)}
+	yyParse(&w)
+	fmt.Printf("%#v\n", w.result)
 }
 
 //line yacctab:1
@@ -473,20 +483,20 @@ yydefault:
 
 	case 1:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line parse.go.y:41
+		//line parse.go.y:40
 		{
 			yyVAL.expr = yyDollar[1].expr
-			yylex.(*Lexer).result = yyVAL.expr
+			yylex.(*LexerWrapper).result = yyVAL.expr
 		}
 	case 2:
 		yyDollar = yyS[yypt-1 : yypt+1]
-		//line parse.go.y:48
+		//line parse.go.y:47
 		{
 			yyVAL.expr = NumExpr{literal: yyDollar[1].token.literal}
 		}
 	case 3:
 		yyDollar = yyS[yypt-3 : yypt+1]
-		//line parse.go.y:52
+		//line parse.go.y:51
 		{
 			yyVAL.expr = BinOpExpr{left: yyDollar[1].expr, operator: '+', right: yyDollar[3].expr}
 		}

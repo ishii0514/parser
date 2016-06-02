@@ -34,7 +34,7 @@ const (
 	itemIdentifier
 	itemPeriod
 	itemArithmeticOperator
-	itemEriminate
+	itemTerminate
 	itemBlockComment
 	itemLineComment
 	itemWhitespace
@@ -162,8 +162,6 @@ func lexBase(l *lexer) stateFn {
 	case r == '\'':
 		return lexString
 	case r == '.':
-		//TODO 要テスト。末尾に'.'がある場合。
-		//TODO 要テスト。ピリオドが二つ以上ある数字。
 		if !unicode.IsDigit(l.peek()) {
 			l.emit(itemPeriod)
 			return lexBase
@@ -176,10 +174,11 @@ func lexBase(l *lexer) stateFn {
 		//+-はここでは演算子として扱う
 		//TODO 数値の符号かどうかは構文解析で考える
 		l.emit(itemArithmeticOperator)
+		//l.emit(itemType(r))
 	case r == '*' || r == '/':
 		l.emit(itemArithmeticOperator)
 	case r == ';':
-		l.emit(itemEriminate)
+		l.emit(itemTerminate)
 	case isIdentifierBegin(r):
 		l.backup()
 		return lexIdentifiler

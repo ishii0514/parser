@@ -1,12 +1,11 @@
 %{
 package parse
 
-import (
+import(
     "fmt"
-    "text/scanner"
-    "os"
-    "strings"
     )
+
+
 type Expression interface{}
 type Token struct {
     token int
@@ -40,7 +39,7 @@ program
     : expr
     {
         $$ = $1
-        yylex.(*Lexer).result = $$
+        yylex.(*LexerWrapper).result = $$
     }
 
 expr
@@ -54,30 +53,40 @@ expr
      } 
 %%
 
-type Lexer struct {
-    scanner.Scanner
+type LexerWrapper struct {
+    //scanner.Scanner
+    l *lexer
     result Expression
 }
 
-func(l *Lexer) Lex(lval *yySymType) int {
-    token := int(l.Scan())
-    if token == scanner.Int {
+func(w *LexerWrapper) Lex(lval *yySymType) int {
+    item := w.l.nextItem()
+    token := int(item.typ)
+    //TODO lexのシンボルとparserのシンボルの合わせ方
+    //案1.直接同じものを使う。シングルバイト1文字はそのままintに変換
+    //案2.変換関数を用意する。
+
+    //TODO 空白除去
+    //TODO テストコード
+    if item.typ == itemNumber {
         token = NUMBER
     }
-    lval.token = Token{token:token, literal: l.TokenText()}
+    if item.typ == itemArithmeticOperator {
+        token = int('+')
+    }
+    if item.typ == itemEOF {
+        token = 0
+    }
+    lval.token = Token{token:token, literal: item.val}
     return token
 }
 
-func (l *Lexer) Error(e string) {
+func (w *LexerWrapper) Error(e string) {
     panic(e)
 }
 
-func main() {
-    l := new(Lexer)
-    l.Init(strings.NewReader(os.Args[1]))
-    yyParse(l)
-    fmt.Printf("%#v¥n", l.result)
+func Parse(input string) {
+	w := LexerWrapper{l: lex(input)}
+	yyParse(&w)
+	fmt.Printf("%#v\n", w.result)
 }
-
-
-
