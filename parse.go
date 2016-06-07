@@ -31,12 +31,14 @@ type yySymType struct {
 }
 
 const NUMBER = 57346
+const SELECT = 57347
 
 var yyToknames = [...]string{
 	"$end",
 	"error",
 	"$unk",
 	"NUMBER",
+	"SELECT",
 	"'+'",
 }
 var yyStatenames = [...]string{}
@@ -48,7 +50,6 @@ const yyInitialStackSize = 16
 //line parse.go.y:54
 
 type LexerWrapper struct {
-	//scanner.Scanner
 	l      *lexer
 	result Expression
 }
@@ -56,16 +57,10 @@ type LexerWrapper struct {
 func (w *LexerWrapper) Lex(lval *yySymType) int {
 	item := w.l.nextItem()
 	token := int(item.typ)
-	//TODO lexのシンボルとparserのシンボルの合わせ方
-	//案1.直接同じものを使う。シングルバイト1文字はそのままintに変換
-	//案2.変換関数を用意する。
-
-	if item.typ == itemNumber {
-		token = NUMBER
-	}
-	if item.typ == itemArithmeticOperator {
-		token = int('+')
-	}
+	//lexのシンボルとparserのシンボルの合わせ方
+	//案1.直接同じものを使う。シングルバイト1文字はそのままintに変換。シンプルだけどparser側の宣言に引っ張られる。
+	//案2.変換関数を用意する。lexerとparserが分離しやすい。
+	//案1を採用。変換関数を都度追加するのが面倒そうなので。
 	if item.typ == itemEOF {
 		token = 0
 	}
@@ -104,7 +99,7 @@ var yyAct = [...]int{
 }
 var yyPact = [...]int{
 
-	-2, -1000, -5, -1000, -2, -1000,
+	-2, -1000, -6, -1000, -2, -1000,
 }
 var yyPgo = [...]int{
 
@@ -120,7 +115,7 @@ var yyR2 = [...]int{
 }
 var yyChk = [...]int{
 
-	-1000, -1, -2, 4, 5, -2,
+	-1000, -1, -2, 4, 6, -2,
 }
 var yyDef = [...]int{
 
@@ -132,11 +127,11 @@ var yyTok1 = [...]int{
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
 	3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
-	3, 3, 3, 5,
+	3, 3, 3, 6,
 }
 var yyTok2 = [...]int{
 
-	2, 3, 4,
+	2, 3, 4, 5,
 }
 var yyTok3 = [...]int{
 	0,

@@ -29,7 +29,7 @@ type BinOpExpr struct {
 
 %type<expr> program
 %type<expr> expr
-%token<token> NUMBER
+%token<token> NUMBER SELECT
 
 %left '+'
 
@@ -54,7 +54,6 @@ expr
 %%
 
 type LexerWrapper struct {
-    //scanner.Scanner
     l *lexer
     result Expression
 }
@@ -62,16 +61,10 @@ type LexerWrapper struct {
 func(w *LexerWrapper) Lex(lval *yySymType) int {
     item := w.l.nextItem()
     token := int(item.typ)
-    //TODO lexのシンボルとparserのシンボルの合わせ方
-    //案1.直接同じものを使う。シングルバイト1文字はそのままintに変換
-    //案2.変換関数を用意する。
-
-    if item.typ == itemNumber {
-        token = NUMBER
-    }
-    if item.typ == itemArithmeticOperator {
-        token = int('+')
-    }
+    //lexのシンボルとparserのシンボルの合わせ方
+    //案1.直接同じものを使う。シングルバイト1文字はそのままintに変換。シンプルだけどparser側の宣言に引っ張られる。
+    //案2.変換関数を用意する。lexerとparserが分離しやすい。
+    //案1を採用。変換関数を都度追加するのが面倒そうなので。
     if item.typ == itemEOF {
         token = 0
     }

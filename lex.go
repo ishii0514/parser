@@ -30,16 +30,15 @@ func (i item) String() string {
 const (
 	itemError itemType = iota
 	itemString
-	itemNumber
 	itemIdentifier
-	itemPeriod
-	itemArithmeticOperator
-	itemTerminate
 	itemBlockComment
 	itemLineComment
-	itemWhitespace
 	itemEOF
 )
+
+var keywords = map[string]int{
+	"SELECT": SELECT,
+}
 
 const eof = -1
 
@@ -167,7 +166,7 @@ func lexBase(l *lexer) stateFn {
 		return lexString
 	case r == '.':
 		if !unicode.IsDigit(l.peek()) {
-			l.emit(itemPeriod)
+			l.emit(itemType(r))
 			return lexBase
 		}
 		fallthrough
@@ -177,12 +176,11 @@ func lexBase(l *lexer) stateFn {
 	case r == '-' || r == '+':
 		//+-はここでは演算子として扱う
 		//TODO 数値の符号かどうかは構文解析で考える
-		l.emit(itemArithmeticOperator)
-		//l.emit(itemType(r))
+		l.emit(itemType(r))
 	case r == '*' || r == '/':
-		l.emit(itemArithmeticOperator)
+		l.emit(itemType(r))
 	case r == ';':
-		l.emit(itemTerminate)
+		l.emit(itemType(r))
 	case isIdentifierBegin(r):
 		l.backup()
 		return lexIdentifiler
@@ -220,7 +218,7 @@ func lexNumber(l *lexer) stateFn {
 	} else {
 		l.emit(itemNumber)
 	}*/
-	l.emit(itemNumber)
+	l.emit(NUMBER)
 	return lexBase
 }
 
@@ -259,7 +257,6 @@ func lexWhitespace(l *lexer) stateFn {
 	for isSpace(l.next()) {
 	}
 	l.backup()
-	//l.emit(itemWhitespace)
 	l.ignore()
 	return lexBase
 }
@@ -268,7 +265,11 @@ func lexIdentifiler(l *lexer) stateFn {
 	for isAlphaNumeric(l.next()) {
 	}
 	l.backup()
-	l.emit(itemIdentifier)
+	if keyword, ok := keywords[l.input[l.start:l.pos]]; ok {
+		l.emit(itemType(keyword))
+	} else {
+		l.emit(itemIdentifier)
+	}
 	return lexBase
 }
 
